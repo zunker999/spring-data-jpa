@@ -18,6 +18,9 @@ package org.springframework.data.jpa.repository.query;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 
+import org.springframework.data.jpa.repository.support.JpaQueryContext;
+import org.springframework.data.repository.augment.QueryAugmentationEngine;
+import org.springframework.data.repository.augment.QueryContext.QueryMode;
 import org.springframework.data.repository.query.EvaluationContextProvider;
 import org.springframework.data.repository.query.ParameterAccessor;
 import org.springframework.data.repository.query.ParametersParameterAccessor;
@@ -96,7 +99,9 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 	 * @return
 	 */
 	public Query createJpaQuery(String queryString) {
-		return getEntityManager().createQuery(queryString);
+		Query query = getEntityManager().createQuery(queryString);
+		query = potentiallyAugment(query);
+		return query;
 	}
 
 	/*
@@ -125,5 +130,22 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 	 */
 	public StringQuery getCountQuery() {
 		return countQuery;
+	}
+
+	protected Query potentiallyAugment(Query query) {
+		return potentiallyAugment(query, QueryMode.FIND);
+	}
+
+	private Query potentiallyAugment(Query query, QueryMode mode) {
+
+		QueryAugmentationEngine engine = getAugmentationEngine();
+
+		if (engine != null
+				&& engine.augmentationNeeded(JpaQueryContext.class, mode, getQueryMethod().getEntityInformation())) {
+			JpaQueryContext context = new JpaQueryContext(mode, getEntityManager(), query);
+			return engine.invokeAugmentors(context).getQuery();
+		} else {
+			return query;
+		}
 	}
 }
