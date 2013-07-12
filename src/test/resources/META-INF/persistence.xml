@@ -63,6 +63,11 @@
 		<class>org.springframework.data.jpa.domain.sample.User</class>
 		<class>org.springframework.data.jpa.repository.support.JpaMetamodelEntityInformationIntegrationTests$Sample</class>
 		<exclude-unlisted-classes>true</exclude-unlisted-classes>
+		<properties>
+			<property name="javax.persistence.jdbc.driver" value="org.hsqldb.jdbcDriver" />
+			<property name="javax.persistence.jdbc.url" value="jdbc:hsqldb:mem:test" />
+			<property name="javax.persistence.jdbc.user" value="sa" />
+		</properties>
 	</persistence-unit>
 	<persistence-unit name="metadata_oj">
 		<provider>org.apache.openjpa.persistence.PersistenceProviderImpl</provider>
