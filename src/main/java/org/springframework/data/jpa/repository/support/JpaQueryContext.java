@@ -18,7 +18,8 @@ package org.springframework.data.jpa.repository.support;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 
-import org.springframework.data.jpa.repository.query.QueryExtractor;
+import org.springframework.data.jpa.provider.PersistenceProvider;
+import org.springframework.data.jpa.provider.QueryExtractor;
 import org.springframework.data.repository.augment.QueryContext;
 
 /**
@@ -30,10 +31,11 @@ public class JpaQueryContext extends QueryContext<Query> {
 	private final QueryExtractor extractor;
 
 	/**
-	 * @param query
-	 * @param queryMode
+	 * @param query must not be {@literal null}.
+	 * @param queryMode must not be {@literal null}.
+	 * @param entityManager must not be {@literal null}.
 	 */
-	public JpaQueryContext(QueryMode queryMode, EntityManager entityManager, Query query) {
+	public JpaQueryContext(Query query, QueryMode queryMode, EntityManager entityManager) {
 
 		super(query, queryMode);
 		this.entityManager = entityManager;
@@ -51,10 +53,9 @@ public class JpaQueryContext extends QueryContext<Query> {
 		return extractor.extractQueryString(getQuery());
 	}
 
-	@SuppressWarnings("unchecked")
 	public JpaQueryContext withQuery(String query) {
 
 		Query createQuery = entityManager.createQuery(query);
-		return new JpaQueryContext(getMode(), entityManager, createQuery);
+		return new JpaQueryContext(createQuery, getMode(), entityManager);
 	}
 }

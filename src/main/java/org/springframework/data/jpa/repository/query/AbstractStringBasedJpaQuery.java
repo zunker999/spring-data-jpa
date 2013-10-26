@@ -141,7 +141,7 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 		QueryAugmentationEngine engine = getAugmentationEngine();
 
 		if (engine.augmentationNeeded(JpaQueryContext.class, mode, getQueryMethod().getEntityInformation())) {
-			JpaQueryContext context = new JpaQueryContext(mode, getEntityManager(), query);
+			JpaQueryContext context = new JpaQueryContext(query, mode, getEntityManager());
 			return engine.invokeAugmentors(context).getQuery();
 		} else {
 			return query;
