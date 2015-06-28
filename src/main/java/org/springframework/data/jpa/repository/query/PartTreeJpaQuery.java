@@ -28,6 +28,8 @@ import org.springframework.data.jpa.provider.PersistenceProvider;
 import org.springframework.data.jpa.repository.query.JpaQueryExecution.DeleteExecution;
 import org.springframework.data.jpa.repository.query.ParameterMetadataProvider.ParameterMetadata;
 import org.springframework.data.jpa.repository.support.JpaCriteriaQueryContext;
+import org.springframework.data.jpa.repository.support.JpaEntityInformation;
+import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport;
 import org.springframework.data.repository.augment.QueryAugmentationEngine;
 import org.springframework.data.repository.augment.QueryContext.QueryMode;
 import org.springframework.data.repository.query.ParametersParameterAccessor;
@@ -49,6 +51,8 @@ public class PartTreeJpaQuery extends AbstractJpaQuery {
 	private final QueryPreparer countQuery;
 	private final EntityManager em;
 
+	private final JpaEntityInformation<?, ?> entityInformation;
+
 	/**
 	 * Creates a new {@link PartTreeJpaQuery}.
 	 * 
@@ -66,6 +70,8 @@ public class PartTreeJpaQuery extends AbstractJpaQuery {
 
 		this.countQuery = new CountQueryPreparer(parameters.potentiallySortsDynamically());
 		this.query = tree.isCountProjection() ? countQuery : new QueryPreparer(parameters.potentiallySortsDynamically());
+
+		this.entityInformation = JpaEntityInformationSupport.getEntityInformation(method.getReturnedObjectType(), em);
 	}
 
 	/*
@@ -194,8 +200,9 @@ public class PartTreeJpaQuery extends AbstractJpaQuery {
 
 			QueryAugmentationEngine engine = getAugmentationEngine();
 
-			if (engine.augmentationNeeded(JpaCriteriaQueryContext.class, mode, getQueryMethod().getEntityInformation())) {
-				JpaCriteriaQueryContext<T, T> context = new JpaCriteriaQueryContext<T, T>(mode, getEntityManager(), query, null);
+			if (engine.augmentationNeeded(JpaCriteriaQueryContext.class, mode, entityInformation)) {
+				JpaCriteriaQueryContext<T, T> context = new JpaCriteriaQueryContext<T, T>(mode, getEntityManager(), query,
+						entityInformation, null);
 				return engine.invokeAugmentors(context).getQuery();
 			} else {
 				return query;

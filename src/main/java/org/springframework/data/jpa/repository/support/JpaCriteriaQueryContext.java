@@ -21,6 +21,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 
 import org.springframework.data.repository.augment.QueryContext;
+import org.springframework.util.Assert;
 
 /**
  * A {@link QueryContext}
@@ -31,23 +32,32 @@ public class JpaCriteriaQueryContext<S, T> extends QueryContext<CriteriaQuery<S>
 
 	private final EntityManager em;
 	private final Root<T> root;
+	private final JpaEntityInformation<?, ?> entityInformation;
 
 	/**
-	 * @param mode
-	 * @param em
-	 * @param query
-	 * @param root
+	 * @param mode must not be {@literal null}.
+	 * @param em must not be {@literal null}.
+	 * @param query must not be {@literal null}.
+	 * @param entityInformation must not be {@literal null}.
+	 * @param root can be {@literal null}.
 	 */
-	public JpaCriteriaQueryContext(QueryMode mode, EntityManager em, CriteriaQuery<S> query, Root<T> root) {
+	public JpaCriteriaQueryContext(QueryMode mode, EntityManager em, CriteriaQuery<S> query,
+			JpaEntityInformation<?, ?> entityInformation, Root<T> root) {
 
 		super(query, mode);
 
+		Assert.notNull(em, "EntityManager must not be null!");
+		Assert.notNull(entityInformation, "JpaEntityInformation must not be null!");
+
 		this.em = em;
 		this.root = root;
+		this.entityInformation = entityInformation;
 	}
 
 	/**
-	 * @return the root
+	 * Returns the {@link Root} of the {@link CriteriaQuery}.
+	 * 
+	 * @return the root can be {@literal null}.
 	 */
 	public Root<T> getRoot() {
 		return root;
@@ -57,7 +67,10 @@ public class JpaCriteriaQueryContext<S, T> extends QueryContext<CriteriaQuery<S>
 		return em.getCriteriaBuilder();
 	}
 
-	public JpaCriteriaQueryContext<S, T> with(CriteriaQuery<S> query) {
-		return new JpaCriteriaQueryContext<S, T>(getMode(), em, query, root);
+	/**
+	 * @return the entityInformation
+	 */
+	public JpaEntityInformation<?, ?> getEntityInformation() {
+		return entityInformation;
 	}
 }

@@ -76,7 +76,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 
 	private static final String ID_MUST_NOT_BE_NULL = "The given id must not be null!";
 
-	private final JpaEntityInformation<T, ?> entityInformation;
+	private final JpaEntityInformation<T, ID> entityInformation;
 	private final EntityManager em;
 	private final PersistenceProvider provider;
 
@@ -89,7 +89,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @param entityInformation must not be {@literal null}.
 	 * @param entityManager must not be {@literal null}.
 	 */
-	public SimpleJpaRepository(JpaEntityInformation<T, ?> entityInformation, EntityManager entityManager) {
+	public SimpleJpaRepository(JpaEntityInformation<T, ID> entityInformation, EntityManager entityManager) {
 
 		Assert.notNull(entityInformation);
 		Assert.notNull(entityManager);
@@ -106,7 +106,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @param em must not be {@literal null}.
 	 */
 	public SimpleJpaRepository(Class<T> domainClass, EntityManager em) {
-		this(JpaEntityInformationSupport.getEntityInformation(domainClass, em), em);
+		this((JpaEntityInformation<T, ID>) JpaEntityInformationSupport.getEntityInformation(domainClass, em), em);
 	}
 
 	/**
@@ -263,10 +263,18 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 			CriteriaQuery<T> query = builder.createQuery(domainType);
 			Root<T> root = query.from(domainType);
 
+			ParameterExpression<ID> idParameter = builder.parameter(entityInformation.getIdType(), "id");
+			query.select(root).where(builder.equal(root.get(entityInformation.getIdAttribute()), idParameter));
+
 			JpaCriteriaQueryContext<T, T> context = potentiallyAugment(query, root, QueryMode.FIND);
+
 			try {
 
-				return em.createQuery(context.getQuery()).getSingleResult();
+				TypedQuery<T> jpaQuery = em.createQuery(context.getQuery());
+				jpaQuery.setParameter(idParameter, id);
+
+				return jpaQuery.getSingleResult();
+
 			} catch (NoResultException e) {
 				return null;
 			}
@@ -719,7 +727,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 
 	private <S> JpaCriteriaQueryContext<S, T> potentiallyAugment(CriteriaQuery<S> query, Root<T> root, QueryMode mode) {
 
-		JpaCriteriaQueryContext<S, T> context = new JpaCriteriaQueryContext<S, T>(mode, em, query, root);
+		JpaCriteriaQueryContext<S, T> context = new JpaCriteriaQueryContext<S, T>(mode, em, query, entityInformation, root);
 
 		if (engine.augmentationNeeded(JpaCriteriaQueryContext.class, mode, entityInformation)) {
 			context = engine.invokeAugmentors(context);
