@@ -303,6 +303,33 @@ public class QueryUtilsUnitTests {
 		assertThat(createCountQueryFor("select u from Usèr u"), is("select count(u) from Usèr u"));
 	}
 
+	/**
+	 * @see DATAJPA-307
+	 */
+	@Test
+	public void augmentsQueryWithFromAndWhere() {
+
+		String query = "select p from Customer c join c.productOrder p where p.delayed = true";
+		String expected = "select p from Customer c, Permission p join c.productOrder p where p.delayed = true and p.domainType = example.Customer";
+
+		assertThat(addFromAndWhere(query, "Permission p", "p.domainType = example.Customer"), is(expected));
+
+		query = "select p from Customer c";
+		expected = "select p from Customer c, Permission p where p.domainType = example.Customer";
+
+		assertThat(addFromAndWhere(query, "Permission p", "p.domainType = example.Customer"), is(expected));
+
+		query = "select p from Customer c join c.productOrder p";
+		expected = "select p from Customer c, Permission p join c.productOrder p where p.domainType = example.Customer";
+
+		assertThat(addFromAndWhere(query, "Permission p", "p.domainType = example.Customer"), is(expected));
+
+		query = "select p from Customer c join c.productOrder p where p.delayed = true order by c.firstname";
+		expected = "select p from Customer c, Permission p join c.productOrder p where p.delayed = true and p.domainType = example.Customer order by c.firstname";
+
+		assertThat(addFromAndWhere(query, "Permission p", "p.domainType = example.Customer"), is(expected));
+	}
+
 	private void assertCountQuery(String originalQuery, String countQuery) {
 		assertThat(createCountQueryFor(originalQuery), is(countQuery));
 	}

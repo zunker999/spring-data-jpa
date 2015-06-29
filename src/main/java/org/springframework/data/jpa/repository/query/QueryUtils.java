@@ -566,4 +566,45 @@ public abstract class QueryUtils {
 
 		return false;
 	}
+
+	public static String addFromAndWhere(String source, String from, String where) {
+
+		String lowerCase = source.toLowerCase(Locale.US);
+
+		int fromIndex = indexOrLength(lowerCase, "from");
+		int joinIndex = indexOrLength(lowerCase, "join");
+		int whereIndex = indexOrLength(lowerCase, "where");
+		int orderByIndex = indexOrLength(lowerCase, "order by");
+
+		int to = joinIndex < whereIndex ? joinIndex : whereIndex;
+
+		String fromClause = source.substring(fromIndex, to).trim();
+		String whereClause = source.substring(whereIndex, orderByIndex).trim();
+
+		StringBuilder builder = new StringBuilder();
+		builder.append(source.substring(0, fromIndex));
+		builder.append(fromClause);
+		builder.append(", ").append(from);
+
+		builder.append(to != whereIndex ? " " : "");
+
+		builder.append(source.substring(to, whereIndex));
+
+		builder.append(whereClause);
+		builder.append(whereIndex != source.length() ? " and " : " where ");
+
+		builder.append(where);
+
+		if (orderByIndex != source.length()) {
+			builder.append(" ").append(source.substring(orderByIndex, source.length()));
+		}
+
+		return builder.toString();
+	}
+
+	private static int indexOrLength(String source, String keyword) {
+
+		int index = source.indexOf(keyword);
+		return index == -1 ? source.length() : index;
+	}
 }

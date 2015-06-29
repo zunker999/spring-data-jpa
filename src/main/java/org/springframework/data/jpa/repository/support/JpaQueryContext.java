@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 the original author or authors.
+ * Copyright 2013-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import javax.persistence.Query;
 
 import org.springframework.data.jpa.provider.PersistenceProvider;
 import org.springframework.data.jpa.provider.QueryExtractor;
+import org.springframework.data.jpa.repository.query.QueryUtils;
 import org.springframework.data.repository.augment.QueryContext;
 
 /**
@@ -53,9 +54,21 @@ public class JpaQueryContext extends QueryContext<Query> {
 		return extractor.extractQueryString(getQuery());
 	}
 
-	public JpaQueryContext withQuery(String query) {
+	/**
+	 * Creates a new {@link JpaQueryContext} from the current one augmenting the query with the given {@code from} and
+	 * {@code where} clause. The where clause can use a placeholder of <code>{alias}</code> to be replaced with the main
+	 * alias of the original query.
+	 * 
+	 * @param from must not be {@literal null}.
+	 * @param where must not be {@literal null}.
+	 * @return
+	 */
+	public JpaQueryContext augment(String from, String where) {
 
-		Query createQuery = entityManager.createQuery(query);
+		String queryString = getQueryString();
+		Query createQuery = entityManager.createQuery(
+				QueryUtils.addFromAndWhere(queryString, from, where.replace("{alias}", QueryUtils.detectAlias(queryString))));
+
 		return new JpaQueryContext(createQuery, getMode(), entityManager);
 	}
 }

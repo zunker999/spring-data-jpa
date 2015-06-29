@@ -50,7 +50,7 @@ public class JpaSoftDeleteQueryAugmentor
 		String string = context.getQueryString();
 		// TODO: Augment query;
 
-		return context.withQuery(string);
+		return context; // context.withQuery(string);
 	}
 
 	/* 
