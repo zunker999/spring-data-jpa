@@ -25,7 +25,7 @@ import org.springframework.data.repository.augment.AnnotationBasedQueryAugmentor
 /**
  * @author Oliver Gierke
  */
-public abstract class AbstractJpaAnnotationBasedQueryAugmentor<T extends Annotation> extends
-		AnnotationBasedQueryAugmentor<T, JpaCriteriaQueryContext<?, ?>, JpaQueryContext, JpaUpdateContext<?>> {
+public abstract class AbstractJpaAnnotationBasedQueryAugmentor<T extends Annotation>
+		extends AnnotationBasedQueryAugmentor<T, JpaCriteriaQueryContext<?, ?>, JpaQueryContext, JpaUpdateContext<?, ?>> {
 
 }

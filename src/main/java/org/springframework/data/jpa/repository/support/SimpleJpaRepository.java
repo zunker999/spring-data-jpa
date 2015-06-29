@@ -20,16 +20,13 @@ import static org.springframework.data.jpa.repository.query.QueryUtils.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
 import javax.persistence.NoResultException;
 import javax.persistence.Parameter;
-import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -48,8 +45,6 @@ import org.springframework.data.jpa.provider.PersistenceProvider;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.query.Jpa21Utils;
-import org.springframework.data.jpa.repository.query.JpaEntityGraph;
 import org.springframework.data.jpa.repository.query.QueryUtils;
 import org.springframework.data.repository.augment.QueryAugmentationEngine;
 import org.springframework.data.repository.augment.QueryAugmentationEngineAware;
@@ -71,8 +66,8 @@ import org.springframework.util.Assert;
  */
 @Repository
 @Transactional(readOnly = true)
-public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepository<T, ID>,
-		JpaSpecificationExecutor<T>, QueryAugmentationEngineAware {
+public class SimpleJpaRepository<T, ID extends Serializable>
+		implements JpaRepository<T, ID>, JpaSpecificationExecutor<T>, QueryAugmentationEngineAware {
 
 	private static final String ID_MUST_NOT_BE_NULL = "The given id must not be null!";
 
@@ -82,6 +77,8 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 
 	private CrudMethodMetadata metadata;
 	private QueryAugmentationEngine engine = QueryAugmentationEngine.NONE;
+
+	private QueryExecutor<T, ID> executor;
 
 	/**
 	 * Creates a new {@link SimpleJpaRepository} to manage objects of the given {@link JpaEntityInformation}.
@@ -97,6 +94,8 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		this.entityInformation = entityInformation;
 		this.em = entityManager;
 		this.provider = PersistenceProvider.fromEntityManager(entityManager);
+
+		this.executor = new QueryExecutor<T, ID>(entityInformation, entityManager, engine, null);
 	}
 
 	/**
@@ -118,6 +117,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 */
 	public void setRepositoryMethodMetadata(CrudMethodMetadata crudMethodMetadata) {
 		this.metadata = crudMethodMetadata;
+		this.executor = new QueryExecutor<T, ID>(entityInformation, em, engine, crudMethodMetadata);
 	}
 
 	protected CrudMethodMetadata getRepositoryMethodMetadata() {
@@ -129,7 +129,9 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @see org.springframework.data.repository.core.support.QueryAugmentationEngineAware#setQueryAugmentationEngine(org.springframework.data.repository.core.support.QueryAugmentationEngine)
 	 */
 	public void setQueryAugmentationEngine(QueryAugmentationEngine engine) {
+
 		this.engine = engine;
+		this.executor = new QueryExecutor<T, ID>(entityInformation, em, engine, metadata);
 	}
 
 	/**
@@ -159,8 +161,8 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		T entity = findOne(id);
 
 		if (entity == null) {
-			throw new EmptyResultDataAccessException(String.format("No %s entity with id %s exists!",
-					entityInformation.getJavaType(), id), 1);
+			throw new EmptyResultDataAccessException(
+					String.format("No %s entity with id %s exists!", entityInformation.getJavaType(), id), 1);
 		}
 
 		delete(entity);
@@ -179,11 +181,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 
 		if (engine.augmentationNeeded(JpaUpdateContext.class, null, entityInformation)) {
 
-			if (executeCountByIdFor(entityInformation.getId(entity), QueryMode.FOR_DELETE) == 0) {
-				return;
-			}
-
-			JpaUpdateContext<T> context = new JpaUpdateContext<T>(entity, UpdateMode.DELETE, em);
+			JpaUpdateContext<T, ID> context = new JpaUpdateContext<T, ID>(entity, UpdateMode.DELETE, em, executor);
 			context = engine.invokeAugmentors(context);
 
 			if (context == null) {
@@ -257,18 +255,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		Class<T> domainType = getDomainClass();
 
 		if (engine.augmentationNeeded(JpaCriteriaQueryContext.class, QueryMode.FIND, entityInformation)) {
-
-			ByIdSpecification<T, ID> spec = new ByIdSpecification<T, ID>(entityInformation);
-			TypedQuery<T> typedQuery = getQuery(spec, (Sort) null);
-
-			try {
-
-				typedQuery.setParameter(spec.parameter, id);
-				return applyQueryHints(typedQuery).getSingleResult();
-
-			} catch (NoResultException e) {
-				return null;
-			}
+			return executor.executeFindOneFor(id);
 		}
 
 		if (metadata == null) {
@@ -289,22 +276,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @return
 	 */
 	protected Map<String, Object> getQueryHints() {
-
-		if (metadata.getEntityGraph() == null) {
-			return metadata.getQueryHints();
-		}
-
-		Map<String, Object> hints = new HashMap<String, Object>();
-		hints.putAll(metadata.getQueryHints());
-		hints.putAll(Jpa21Utils.tryGetFetchGraphHints(em, getEntityGraph(), getDomainClass()));
-
-		return hints;
-	}
-
-	private JpaEntityGraph getEntityGraph() {
-
-		String fallbackName = this.entityInformation.getEntityName() + "." + metadata.getMethod().getName();
-		return new JpaEntityGraph(metadata.getEntityGraph(), fallbackName);
+		return executor.getQueryHints();
 	}
 
 	/* 
@@ -331,7 +303,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		}
 
 		if (!entityInformation.hasCompositeId()) {
-			return executeCountByIdFor(id, QueryMode.EXIST) == 1L;
+			return executor.executeCountByIdFor(id, QueryMode.EXIST) == 1L;
 		}
 
 		String placeholder = provider.getCountQueryPlaceholder();
@@ -365,7 +337,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @see org.springframework.data.jpa.repository.JpaRepository#findAll()
 	 */
 	public List<T> findAll() {
-		return getQuery(null, (Sort) null).getResultList();
+		return executor.getQuery(null, (Sort) null).getResultList();
 	}
 
 	/*
@@ -390,7 +362,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		}
 
 		ByIdsSpecification<T> specification = new ByIdsSpecification<T>(entityInformation);
-		TypedQuery<T> query = getQuery(specification, (Sort) null);
+		TypedQuery<T> query = executor.getQuery(specification, (Sort) null);
 
 		return query.setParameter(specification.parameter, ids).getResultList();
 	}
@@ -400,7 +372,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @see org.springframework.data.jpa.repository.JpaRepository#findAll(org.springframework.data.domain.Sort)
 	 */
 	public List<T> findAll(Sort sort) {
-		return getQuery(null, sort).getResultList();
+		return executor.getQuery(null, sort).getResultList();
 	}
 
 	/*
@@ -423,7 +395,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	public T findOne(Specification<T> spec) {
 
 		try {
-			return getQuery(spec, (Sort) null).getSingleResult();
+			return executor.getQuery(spec, (Sort) null).getSingleResult();
 		} catch (NoResultException e) {
 			return null;
 		}
@@ -434,7 +406,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#findAll(org.springframework.data.jpa.domain.Specification)
 	 */
 	public List<T> findAll(Specification<T> spec) {
-		return getQuery(spec, (Sort) null).getResultList();
+		return executor.getQuery(spec, (Sort) null).getResultList();
 	}
 
 	/*
@@ -452,8 +424,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#findAll(org.springframework.data.jpa.domain.Specification, org.springframework.data.domain.Sort)
 	 */
 	public List<T> findAll(Specification<T> spec, Sort sort) {
-
-		return getQuery(spec, sort).getResultList();
+		return executor.getQuery(spec, sort).getResultList();
 	}
 
 	/*
@@ -469,7 +440,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#count(org.springframework.data.jpa.domain.Specification)
 	 */
 	public long count(Specification<T> spec) {
-		return executeCountQuery(getCountQuery(spec));
+		return executor.executeCountQueryFor(spec, QueryMode.COUNT);
 	}
 
 	/*
@@ -544,7 +515,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		query.setFirstResult(pageable.getOffset());
 		query.setMaxResults(pageable.getPageSize());
 
-		Long total = executeCountQuery(getCountQuery(spec));
+		Long total = executor.executeCountQueryFor(spec, QueryMode.COUNT_FOR_PAGING);
 		List<T> content = total > pageable.getOffset() ? query.getResultList() : Collections.<T> emptyList();
 
 		return new PageImpl<T>(content, pageable, total);
@@ -560,140 +531,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	protected TypedQuery<T> getQuery(Specification<T> spec, Pageable pageable) {
 
 		Sort sort = pageable == null ? null : pageable.getSort();
-		return getQuery(spec, sort);
-	}
-
-	/**
-	 * Creates a {@link TypedQuery} for the given {@link Specification} and {@link Sort}.
-	 * 
-	 * @param spec can be {@literal null}.
-	 * @param sort can be {@literal null}.
-	 * @return
-	 */
-	protected TypedQuery<T> getQuery(Specification<T> spec, Sort sort) {
-
-		CriteriaBuilder builder = em.getCriteriaBuilder();
-		CriteriaQuery<T> query = builder.createQuery(getDomainClass());
-
-		Root<T> root = applySpecificationToCriteria(spec, query);
-
-		JpaCriteriaQueryContext<T, T> context = potentiallyAugment(query, root, QueryMode.FIND);
-		query = context.getQuery();
-		root = context.getRoot();
-
-		query.select(root);
-
-		if (sort != null) {
-			query.orderBy(toOrders(sort, root, builder));
-		}
-
-		return applyRepositoryMethodMetadata(em.createQuery(query));
-	}
-
-	/**
-	 * Creates a new count query for the given {@link Specification}.
-	 * 
-	 * @param spec can be {@literal null}.
-	 * @return
-	 */
-	protected TypedQuery<Long> getCountQuery(Specification<T> spec) {
-		return getCountQuery(spec, QueryMode.COUNT);
-	}
-
-	protected TypedQuery<Long> getCountQuery(Specification<T> spec, QueryMode mode) {
-
-		CriteriaBuilder builder = em.getCriteriaBuilder();
-		CriteriaQuery<Long> query = builder.createQuery(Long.class);
-
-		Root<T> root = applySpecificationToCriteria(spec, query);
-
-		JpaCriteriaQueryContext<Long, T> context = potentiallyAugment(query, root, mode);
-		query = context.getQuery();
-		root = context.getRoot();
-
-		if (query.isDistinct()) {
-			query.select(builder.countDistinct(root));
-		} else {
-			query.select(builder.count(root));
-		}
-
-		return em.createQuery(query);
-	}
-
-	/**
-	 * Applies the given {@link Specification} to the given {@link CriteriaQuery}.
-	 * 
-	 * @param spec can be {@literal null}.
-	 * @param query must not be {@literal null}.
-	 * @return
-	 */
-	private <S> Root<T> applySpecificationToCriteria(Specification<T> spec, CriteriaQuery<S> query) {
-
-		Assert.notNull(query);
-		Root<T> root = query.from(getDomainClass());
-
-		if (spec == null) {
-			return root;
-		}
-
-		CriteriaBuilder builder = em.getCriteriaBuilder();
-		Predicate predicate = spec.toPredicate(root, query, builder);
-
-		if (predicate != null) {
-			query.where(predicate);
-		}
-
-		return root;
-	}
-
-	private TypedQuery<T> applyRepositoryMethodMetadata(TypedQuery<T> query) {
-
-		if (metadata == null) {
-			return query;
-		}
-
-		LockModeType type = metadata.getLockModeType();
-		TypedQuery<T> toReturn = type == null ? query : query.setLockMode(type);
-
-		return applyQueryHints(toReturn);
-	}
-
-	private <Q extends Query> Q applyQueryHints(Q query) {
-
-		for (Entry<String, Object> hint : getQueryHints().entrySet()) {
-			query.setHint(hint.getKey(), hint.getValue());
-		}
-
-		return query;
-	}
-
-	private Long executeCountByIdFor(ID id, QueryMode mode) {
-
-		ByIdSpecification<T, ID> specification = new ByIdSpecification<T, ID>(entityInformation);
-		TypedQuery<Long> query = getCountQuery(specification, mode);
-		query.setParameter(specification.parameter, id);
-
-		return executeCountQuery(query);
-	}
-
-	/**
-	 * Executes a count query and transparently sums up all values returned.
-	 * 
-	 * @param query must not be {@literal null}.
-	 * @return
-	 */
-	private static Long executeCountQuery(TypedQuery<Long> query) {
-
-		Assert.notNull(query);
-
-		List<Long> totals = query.getResultList();
-		Long total = 0L;
-
-		for (Long element : totals) {
-			total += element == null ? 0 : element;
-		}
-
-		return total;
+		return executor.getQuery(spec, sort);
 	}
 
 	/**
@@ -725,38 +563,5 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 			parameter = cb.parameter(Iterable.class);
 			return path.in(parameter);
 		}
-	}
-
-	private static final class ByIdSpecification<T, ID extends Serializable> implements Specification<T> {
-
-		private final JpaEntityInformation<T, ID> entityInformation;
-
-		ParameterExpression<ID> parameter;
-
-		public ByIdSpecification(JpaEntityInformation<T, ID> entityInformation) {
-			this.entityInformation = entityInformation;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see org.springframework.data.jpa.domain.Specification#toPredicate(javax.persistence.criteria.Root, javax.persistence.criteria.CriteriaQuery, javax.persistence.criteria.CriteriaBuilder)
-		 */
-		public Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
-
-			Path<?> path = root.get(entityInformation.getIdAttribute());
-			parameter = cb.parameter(entityInformation.getIdType());
-			return cb.equal(path, parameter);
-		}
-	}
-
-	private <S> JpaCriteriaQueryContext<S, T> potentiallyAugment(CriteriaQuery<S> query, Root<T> root, QueryMode mode) {
-
-		JpaCriteriaQueryContext<S, T> context = new JpaCriteriaQueryContext<S, T>(mode, em, query, entityInformation, root);
-
-		if (engine.augmentationNeeded(JpaCriteriaQueryContext.class, mode, entityInformation)) {
-			context = engine.invokeAugmentors(context);
-		}
-
-		return context;
 	}
 }

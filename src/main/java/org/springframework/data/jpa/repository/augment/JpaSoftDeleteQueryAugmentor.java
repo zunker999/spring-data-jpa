@@ -33,8 +33,8 @@ import org.springframework.data.repository.augment.QueryContext.QueryMode;
  * 
  * @author Oliver Gierke
  */
-public class JpaSoftDeleteQueryAugmentor extends
-		AbstractSoftDeleteQueryAugmentor<JpaCriteriaQueryContext<?, ?>, JpaQueryContext, JpaUpdateContext<?>> {
+public class JpaSoftDeleteQueryAugmentor
+		extends AbstractSoftDeleteQueryAugmentor<JpaCriteriaQueryContext<?, ?>, JpaQueryContext, JpaUpdateContext<?, ?>> {
 
 	/* 
 	 * (non-Javadoc)
@@ -76,7 +76,7 @@ public class JpaSoftDeleteQueryAugmentor extends
 	 * @see org.springframework.data.repository.augment.AbstractSoftDeleteQueryAugmentor#updateDeletedState(java.lang.Object)
 	 */
 	@Override
-	public void updateDeletedState(Object entity, JpaUpdateContext<?> context) {
+	public void updateDeletedState(Object entity, JpaUpdateContext<?, ?> context) {
 		context.getEntityManager().merge(entity);
 	}
 
@@ -85,7 +85,7 @@ public class JpaSoftDeleteQueryAugmentor extends
 	 * @see org.springframework.data.repository.augment.AbstractSoftDeleteQueryAugmentor#prepareBeanWrapper(org.springframework.data.repository.augment.UpdateContext)
 	 */
 	@Override
-	protected BeanWrapper createBeanWrapper(JpaUpdateContext<?> context) {
+	protected BeanWrapper createBeanWrapper(JpaUpdateContext<?, ?> context) {
 		return new PropertyChangeEnsuringBeanWrapper(context.getEntity());
 	}
 }

@@ -15,6 +15,8 @@
  */
 package org.springframework.data.jpa.repository.support;
 
+import java.io.Serializable;
+
 import javax.persistence.EntityManager;
 
 import org.springframework.data.repository.augment.UpdateContext;
@@ -25,9 +27,10 @@ import org.springframework.util.Assert;
  * 
  * @author Oliver Gierke
  */
-public class JpaUpdateContext<T> extends UpdateContext<T> {
+public class JpaUpdateContext<T, ID extends Serializable> extends UpdateContext<T> {
 
 	private final EntityManager em;
+	private final QueryExecutor<T, ID> executor;
 
 	/**
 	 * Creates a new {@link JpaUpdateContext} from the given entity and {@link EntityManager}.
@@ -35,12 +38,13 @@ public class JpaUpdateContext<T> extends UpdateContext<T> {
 	 * @param entity
 	 * @param em must not be {@literal null}.
 	 */
-	public JpaUpdateContext(T entity, UpdateMode mode, EntityManager em) {
+	public JpaUpdateContext(T entity, UpdateMode mode, EntityManager em, QueryExecutor<T, ID> executor) {
 
 		super(entity, mode);
 
 		Assert.notNull(em, "EntityManager must not be null!");
 		this.em = em;
+		this.executor = executor;
 	}
 
 	/**
@@ -50,5 +54,12 @@ public class JpaUpdateContext<T> extends UpdateContext<T> {
 	 */
 	public EntityManager getEntityManager() {
 		return em;
+	}
+
+	/**
+	 * @return the executor
+	 */
+	public QueryExecutor<T, ID> getQueryExecutor() {
+		return executor;
 	}
 }
