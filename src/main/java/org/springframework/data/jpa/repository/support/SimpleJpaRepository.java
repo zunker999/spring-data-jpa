@@ -105,6 +105,7 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @param domainClass must not be {@literal null}.
 	 * @param em must not be {@literal null}.
 	 */
+	@SuppressWarnings("unchecked")
 	public SimpleJpaRepository(Class<T> domainClass, EntityManager em) {
 		this((JpaEntityInformation<T, ID>) JpaEntityInformationSupport.getEntityInformation(domainClass, em), em);
 	}
@@ -146,12 +147,6 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		return getQueryString(DELETE_ALL_QUERY_STRING, entityInformation.getEntityName());
 	}
 
-	private String getCountQueryString() {
-
-		String countQuery = String.format(COUNT_QUERY_STRING, provider.getCountQueryPlaceholder(), "%s");
-		return getQueryString(countQuery, entityInformation.getEntityName());
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.CrudRepository#delete(java.io.Serializable)
@@ -183,6 +178,10 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		entity = em.contains(entity) ? entity : em.merge(entity);
 
 		if (engine.augmentationNeeded(JpaUpdateContext.class, null, entityInformation)) {
+
+			if (executeCountByIdFor(entityInformation.getId(entity), QueryMode.FOR_DELETE) == 0) {
+				return;
+			}
 
 			JpaUpdateContext<T> context = new JpaUpdateContext<T>(entity, UpdateMode.DELETE, em);
 			context = engine.invokeAugmentors(context);
@@ -259,21 +258,13 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 
 		if (engine.augmentationNeeded(JpaCriteriaQueryContext.class, QueryMode.FIND, entityInformation)) {
 
-			CriteriaBuilder builder = em.getCriteriaBuilder();
-			CriteriaQuery<T> query = builder.createQuery(domainType);
-			Root<T> root = query.from(domainType);
-
-			ParameterExpression<ID> idParameter = builder.parameter(entityInformation.getIdType(), "id");
-			query.select(root).where(builder.equal(root.get(entityInformation.getIdAttribute()), idParameter));
-
-			JpaCriteriaQueryContext<T, T> context = potentiallyAugment(query, root, QueryMode.FIND);
+			ByIdSpecification<T, ID> spec = new ByIdSpecification<T, ID>(entityInformation);
+			TypedQuery<T> typedQuery = getQuery(spec, (Sort) null);
 
 			try {
 
-				TypedQuery<T> jpaQuery = em.createQuery(context.getQuery());
-				jpaQuery.setParameter(idParameter, id);
-
-				return jpaQuery.getSingleResult();
+				typedQuery.setParameter(spec.parameter, id);
+				return applyQueryHints(typedQuery).getSingleResult();
 
 			} catch (NoResultException e) {
 				return null;
@@ -305,7 +296,6 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 
 		Map<String, Object> hints = new HashMap<String, Object>();
 		hints.putAll(metadata.getQueryHints());
-
 		hints.putAll(Jpa21Utils.tryGetFetchGraphHints(em, getEntityGraph(), getDomainClass()));
 
 		return hints;
@@ -340,17 +330,16 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 			return findOne(id) != null;
 		}
 
+		if (!entityInformation.hasCompositeId()) {
+			return executeCountByIdFor(id, QueryMode.EXIST) == 1L;
+		}
+
 		String placeholder = provider.getCountQueryPlaceholder();
 		String entityName = entityInformation.getEntityName();
 		Iterable<String> idAttributeNames = entityInformation.getIdAttributeNames();
 		String existsQuery = QueryUtils.getExistsQueryString(entityName, placeholder, idAttributeNames);
 
 		TypedQuery<Long> query = em.createQuery(existsQuery, Long.class);
-
-		if (!entityInformation.hasCompositeId()) {
-			query.setParameter(idAttributeNames.iterator().next(), id);
-			return query.getSingleResult() == 1L;
-		}
 
 		for (String idAttributeName : idAttributeNames) {
 
@@ -608,13 +597,17 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 	 * @return
 	 */
 	protected TypedQuery<Long> getCountQuery(Specification<T> spec) {
+		return getCountQuery(spec, QueryMode.COUNT);
+	}
+
+	protected TypedQuery<Long> getCountQuery(Specification<T> spec, QueryMode mode) {
 
 		CriteriaBuilder builder = em.getCriteriaBuilder();
 		CriteriaQuery<Long> query = builder.createQuery(Long.class);
 
 		Root<T> root = applySpecificationToCriteria(spec, query);
 
-		JpaCriteriaQueryContext<Long, T> context = potentiallyAugment(query, root, QueryMode.COUNT);
+		JpaCriteriaQueryContext<Long, T> context = potentiallyAugment(query, root, mode);
 		query = context.getQuery();
 		root = context.getRoot();
 
@@ -662,16 +655,25 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 		LockModeType type = metadata.getLockModeType();
 		TypedQuery<T> toReturn = type == null ? query : query.setLockMode(type);
 
-		applyQueryHints(toReturn);
-
-		return toReturn;
+		return applyQueryHints(toReturn);
 	}
 
-	private void applyQueryHints(Query query) {
+	private <Q extends Query> Q applyQueryHints(Q query) {
 
 		for (Entry<String, Object> hint : getQueryHints().entrySet()) {
 			query.setHint(hint.getKey(), hint.getValue());
 		}
+
+		return query;
+	}
+
+	private Long executeCountByIdFor(ID id, QueryMode mode) {
+
+		ByIdSpecification<T, ID> specification = new ByIdSpecification<T, ID>(entityInformation);
+		TypedQuery<Long> query = getCountQuery(specification, mode);
+		query.setParameter(specification.parameter, id);
+
+		return executeCountQuery(query);
 	}
 
 	/**
@@ -722,6 +724,28 @@ public class SimpleJpaRepository<T, ID extends Serializable> implements JpaRepos
 			Path<?> path = root.get(entityInformation.getIdAttribute());
 			parameter = cb.parameter(Iterable.class);
 			return path.in(parameter);
+		}
+	}
+
+	private static final class ByIdSpecification<T, ID extends Serializable> implements Specification<T> {
+
+		private final JpaEntityInformation<T, ID> entityInformation;
+
+		ParameterExpression<ID> parameter;
+
+		public ByIdSpecification(JpaEntityInformation<T, ID> entityInformation) {
+			this.entityInformation = entityInformation;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.data.jpa.domain.Specification#toPredicate(javax.persistence.criteria.Root, javax.persistence.criteria.CriteriaQuery, javax.persistence.criteria.CriteriaBuilder)
+		 */
+		public Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+
+			Path<?> path = root.get(entityInformation.getIdAttribute());
+			parameter = cb.parameter(entityInformation.getIdType());
+			return cb.equal(path, parameter);
 		}
 	}
 

@@ -15,10 +15,8 @@
  */
 package org.springframework.data.jpa.repository.support;
 
-import static java.util.Collections.singletonMap;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static java.util.Collections.*;
+import static org.mockito.Mockito.*;
 
 import java.io.Serializable;
 
@@ -48,7 +46,7 @@ import org.springframework.data.repository.CrudRepository;
 @RunWith(MockitoJUnitRunner.class)
 public class SimpleJpaRepositoryUnitTests {
 
-	SimpleJpaRepository<User, Integer> repo;
+	SimpleJpaRepository<User, Long> repo;
 
 	@Mock EntityManager em;
 	@Mock CriteriaBuilder builder;
@@ -75,7 +73,7 @@ public class SimpleJpaRepositoryUnitTests {
 		when(em.createQuery(criteriaQuery)).thenReturn(query);
 		when(em.createQuery(countCriteriaQuery)).thenReturn(countQuery);
 
-		repo = new SimpleJpaRepository<User, Integer>(information, em);
+		repo = new SimpleJpaRepository<User, Long>(information, em);
 		repo.setRepositoryMethodMetadata(metadata);
 	}
 
@@ -97,7 +95,7 @@ public class SimpleJpaRepositoryUnitTests {
 	@Test(expected = EmptyResultDataAccessException.class)
 	public void throwsExceptionIfEntityToDeleteDoesNotExist() {
 
-		repo.delete(4711);
+		repo.delete(4711L);
 	}
 
 	/**
@@ -106,7 +104,7 @@ public class SimpleJpaRepositoryUnitTests {
 	 */
 	@Test
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void shouldPropagateConfiguredEntityGraphToFindOne() throws Exception{
+	public void shouldPropagateConfiguredEntityGraphToFindOne() throws Exception {
 
 		String entityGraphName = "User.detail";
 		when(entityGraphAnnotation.value()).thenReturn(entityGraphName);
@@ -115,8 +113,8 @@ public class SimpleJpaRepositoryUnitTests {
 		when(em.getEntityGraph(entityGraphName)).thenReturn((EntityGraph) entityGraph);
 		when(information.getEntityName()).thenReturn("User");
 		when(metadata.getMethod()).thenReturn(CrudRepository.class.getMethod("findOne", Serializable.class));
-		
-		Integer id = 0;
+
+		Long id = 0L;
 		repo.findOne(id);
 
 		verify(em).find(User.class, id, singletonMap(EntityGraphType.LOAD.getKey(), (Object) entityGraph));

@@ -71,7 +71,8 @@ public class PartTreeJpaQuery extends AbstractJpaQuery {
 		this.countQuery = new CountQueryPreparer(parameters.potentiallySortsDynamically());
 		this.query = tree.isCountProjection() ? countQuery : new QueryPreparer(parameters.potentiallySortsDynamically());
 
-		this.entityInformation = JpaEntityInformationSupport.getEntityInformation(method.getReturnedObjectType(), em);
+		this.entityInformation = JpaEntityInformationSupport
+				.getEntityInformation(method.getEntityInformation().getJavaType(), em);
 	}
 
 	/*

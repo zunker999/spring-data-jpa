@@ -210,7 +210,7 @@ public class JpaRepositoryFactoryUnitTests {
 
 	static class CustomJpaRepository<T, ID extends Serializable> extends SimpleJpaRepository<T, ID> {
 
-		public CustomJpaRepository(JpaEntityInformation<T, ?> entityInformation, EntityManager entityManager) {
+		public CustomJpaRepository(JpaEntityInformation<T, ID> entityInformation, EntityManager entityManager) {
 			super(entityInformation, entityManager);
 		}
 	};
