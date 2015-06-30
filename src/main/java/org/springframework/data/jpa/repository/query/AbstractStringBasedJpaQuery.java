@@ -18,8 +18,6 @@ package org.springframework.data.jpa.repository.query;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 
-import org.springframework.data.jpa.repository.support.JpaEntityInformation;
-import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport;
 import org.springframework.data.jpa.repository.support.JpaQueryContext;
 import org.springframework.data.repository.augment.QueryAugmentationEngine;
 import org.springframework.data.repository.augment.QueryContext.QueryMode;
@@ -41,7 +39,6 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 	private final StringQuery countQuery;
 	private final EvaluationContextProvider evaluationContextProvider;
 	private final SpelExpressionParser parser;
-	private final JpaEntityInformation<?, ?> entityInformation;
 
 	/**
 	 * Creates a new {@link AbstractStringBasedJpaQuery} from the given {@link JpaQueryMethod}, {@link EntityManager} and
@@ -67,8 +64,6 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 		this.countQuery = new StringQuery(method.getCountQuery() != null ? method.getCountQuery()
 				: QueryUtils.createCountQueryFor(this.query.getQueryString(), method.getCountQueryProjection()));
 		this.parser = parser;
-		this.entityInformation = JpaEntityInformationSupport
-				.getEntityInformation(method.getEntityInformation().getJavaType(), em);
 	}
 
 	/*
@@ -145,8 +140,8 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 
 		QueryAugmentationEngine engine = getAugmentationEngine();
 
-		if (engine.augmentationNeeded(JpaQueryContext.class, mode, getQueryMethod().getEntityInformation())) {
-			JpaQueryContext context = new JpaQueryContext(query, mode, getEntityManager(), entityInformation);
+		if (engine.augmentationNeeded(JpaQueryContext.class, mode, getEntityInformation())) {
+			JpaQueryContext context = new JpaQueryContext(query, mode, getEntityManager(), getEntityInformation());
 			return engine.invokeNativeAugmentors(context).getQuery();
 		} else {
 			return query;

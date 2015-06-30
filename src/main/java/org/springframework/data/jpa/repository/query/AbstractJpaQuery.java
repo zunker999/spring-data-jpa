@@ -31,6 +31,8 @@ import org.springframework.data.jpa.repository.query.JpaQueryExecution.Procedure
 import org.springframework.data.jpa.repository.query.JpaQueryExecution.SingleEntityExecution;
 import org.springframework.data.jpa.repository.query.JpaQueryExecution.SlicedExecution;
 import org.springframework.data.jpa.repository.query.JpaQueryExecution.StreamExecution;
+import org.springframework.data.jpa.repository.support.JpaEntityInformation;
+import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport;
 import org.springframework.data.repository.augment.QueryAugmentationEngine;
 import org.springframework.data.repository.augment.QueryAugmentationEngineAware;
 import org.springframework.data.repository.query.RepositoryQuery;
@@ -48,12 +50,13 @@ public abstract class AbstractJpaQuery implements RepositoryQuery, QueryAugmenta
 	private final EntityManager em;
 
 	private QueryAugmentationEngine augmentationEngine = QueryAugmentationEngine.NONE;
+	private JpaEntityInformation<?, ?> entityInformation;
 
 	/**
 	 * Creates a new {@link AbstractJpaQuery} from the given {@link JpaQueryMethod}.
 	 * 
-	 * @param method
-	 * @param em
+	 * @param method must not be {@literal null}.
+	 * @param em must not be {@literal null}.
 	 */
 	public AbstractJpaQuery(JpaQueryMethod method, EntityManager em) {
 
@@ -74,21 +77,34 @@ public abstract class AbstractJpaQuery implements RepositoryQuery, QueryAugmenta
 
 	/*
 	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.springframework.data.repository.query.RepositoryQuery#getQueryMethod
-	 * ()
+	 * @see org.springframework.data.repository.query.RepositoryQuery#getQueryMethod()
 	 */
 	public JpaQueryMethod getQueryMethod() {
-
 		return method;
 	}
 
 	/**
-	 * @return the em
+	 * Returns the EntityManager to be used with the query.
+	 * 
+	 * @return will never be {@literal null}.
 	 */
 	protected EntityManager getEntityManager() {
 		return em;
+	}
+
+	/**
+	 * Returns the {@link JpaEntityInformation} for the query domain type.
+	 * 
+	 * @return will never be {@literal null}.
+	 */
+	protected JpaEntityInformation<?, ?> getEntityInformation() {
+
+		if (entityInformation == null) {
+			this.entityInformation = JpaEntityInformationSupport
+					.getEntityInformation(method.getEntityInformation().getJavaType(), em);
+		}
+
+		return entityInformation;
 	}
 
 	/**
@@ -100,10 +116,7 @@ public abstract class AbstractJpaQuery implements RepositoryQuery, QueryAugmenta
 
 	/*
 	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.springframework.data.repository.query.RepositoryQuery#execute(java
-	 * .lang.Object[])
+	 * @see org.springframework.data.repository.query.RepositoryQuery#execute(java.lang.Object[])
 	 */
 	public Object execute(Object[] parameters) {
 		return doExecute(getExecution(), parameters);

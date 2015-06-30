@@ -181,7 +181,8 @@ public class SimpleJpaRepository<T, ID extends Serializable>
 
 		if (engine.augmentationNeeded(JpaUpdateContext.class, null, entityInformation)) {
 
-			JpaUpdateContext<T, ID> context = new JpaUpdateContext<T, ID>(entity, UpdateMode.DELETE, em, executor);
+			JpaUpdateContext<T, ID> context = new JpaUpdateContext<T, ID>(entity, UpdateMode.DELETE, em, executor,
+					entityInformation);
 			context = engine.invokeAugmentors(context);
 
 			if (context == null) {
@@ -449,6 +450,16 @@ public class SimpleJpaRepository<T, ID extends Serializable>
 	 */
 	@Transactional
 	public <S extends T> S save(S entity) {
+
+		if (engine.augmentationNeeded(JpaUpdateContext.class, null, entityInformation)) {
+
+			JpaUpdateContext<T, ID> context = engine
+					.invokeAugmentors(new JpaUpdateContext<T, ID>(entity, UpdateMode.SAVE, em, executor, entityInformation));
+
+			if (context == null) {
+				return entity;
+			}
+		}
 
 		if (entityInformation.isNew(entity)) {
 			em.persist(entity);

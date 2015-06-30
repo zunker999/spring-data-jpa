@@ -66,6 +66,18 @@ public class QueryExecutor<T, ID extends Serializable> {
 		this.metadata = metadata;
 	}
 
+	@SuppressWarnings("unchecked")
+	public <R> R execute(String jpqlString, Map<String, Object> parameters) {
+
+		Query query = em.createQuery(jpqlString);
+
+		for (Entry<String, Object> parameter : parameters.entrySet()) {
+			query.setParameter(parameter.getKey(), parameter.getValue());
+		}
+
+		return (R) query.getSingleResult();
+	}
+
 	/**
 	 * Creates a {@link TypedQuery} for the given {@link Specification} and {@link Sort}.
 	 * 
