@@ -31,6 +31,7 @@ public class JpaUpdateContext<T, ID extends Serializable> extends UpdateContext<
 
 	private final EntityManager em;
 	private final QueryExecutor<T, ID> executor;
+	private final JpaEntityInformation<T, ?> entityInformation;
 
 	/**
 	 * Creates a new {@link JpaUpdateContext} from the given entity and {@link EntityManager}.
@@ -38,13 +39,16 @@ public class JpaUpdateContext<T, ID extends Serializable> extends UpdateContext<
 	 * @param entity
 	 * @param em must not be {@literal null}.
 	 */
-	public JpaUpdateContext(T entity, UpdateMode mode, EntityManager em, QueryExecutor<T, ID> executor) {
+	public JpaUpdateContext(T entity, UpdateMode mode, EntityManager em, QueryExecutor<T, ID> executor,
+			JpaEntityInformation<T, ?> entityInformation) {
 
 		super(entity, mode);
 
 		Assert.notNull(em, "EntityManager must not be null!");
+
 		this.em = em;
 		this.executor = executor;
+		this.entityInformation = entityInformation;
 	}
 
 	/**
@@ -61,5 +65,9 @@ public class JpaUpdateContext<T, ID extends Serializable> extends UpdateContext<
 	 */
 	public QueryExecutor<T, ID> getQueryExecutor() {
 		return executor;
+	}
+
+	public boolean isNewEntity() {
+		return entityInformation.isNew(getEntity());
 	}
 }
