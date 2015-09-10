@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.Callable;
 
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
@@ -35,6 +36,8 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
+import org.hibernate.FlushMode;
+import org.hibernate.Session;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -136,6 +139,33 @@ public class QueryExecutor<T, ID extends Serializable> {
 
 	public Long executeCountQueryFor(Specification<T> spec, QueryMode mode) {
 		return executeCountQuery(getCountQuery(spec, mode));
+	}
+
+	/**
+	 * Executes the given {@link Callable} with flushing disabled.
+	 * 
+	 * @param callable must not be {@literal null}.
+	 * @return
+	 */
+	public <S> S doWithFlushDisabled(Callable<S> callable) {
+
+		// TODO: move to PersistenceProvider for provider specific implementation
+
+		Assert.notNull(callable, "Callable must not be null!");
+
+		Session session = (Session) em.getDelegate();
+		FlushMode mode = session.getFlushMode();
+		session.setFlushMode(FlushMode.MANUAL);
+
+		try {
+			return callable.call();
+		} catch (RuntimeException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		} finally {
+			session.setFlushMode(mode);
+		}
 	}
 
 	protected TypedQuery<Long> getCountQuery(Specification<T> spec, QueryMode mode) {
