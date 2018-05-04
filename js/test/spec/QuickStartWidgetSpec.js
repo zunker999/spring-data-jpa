@@ -6,7 +6,7 @@ describe("QuickStartWidget", function () {
       var project = new Spring.Project({
         "id": "spring-data-jpa",
         "name": "Spring Data JPA",
-        "repoUrl": "http://github.com/SpringSource/spring-data-jpa",
+		  "repoUrl": "http://github.com/spring-projects/spring-data-jpa",
         "siteUrl": "http://projects.spring.io/spring-data-jpa",
         "projectReleases": [
           {
