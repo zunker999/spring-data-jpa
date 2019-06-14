@@ -51,6 +51,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.Page;
@@ -1852,7 +1853,7 @@ public class UserRepositoryTests {
 		prototype.setFirstname(firstUser.getFirstname());
 
 		Example<User> example = Example.of(prototype, matching().withIncludeNullValues().withIgnorePaths("id", "binaryData",
-				"lastname", "emailAddress", "age", "createdAt"));
+				"lastname", "emailAddress", "age", "createdAt", "version"));
 
 		List<User> users = repository.findAll(example);
 
@@ -2221,6 +2222,21 @@ public class UserRepositoryTests {
 	@Test // DATAJPA-1535
 	public void deleteNewInstanceSucceedsByDoingNothing() {
 		repository.delete(new User());
+	}
+
+	@Test // DATAJPA-1553
+	public void deletingEntityWithWrongVersionThrowsOptimisticLockingException1() {
+
+		flushTestUsers();
+
+		User copy = new User();
+
+		copy.setId(firstUser.getId());
+		copy.setVersion(firstUser.getVersion()+23);
+
+		assertThatThrownBy(() ->
+				repository.delete(copy)).isInstanceOf(OptimisticLockingFailureException.class);
+
 	}
 
 	private Page<User> executeSpecWithSort(Sort sort) {
