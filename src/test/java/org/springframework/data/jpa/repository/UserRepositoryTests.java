@@ -2280,6 +2280,55 @@ public class UserRepositoryTests {
 		assertThat(result).containsOnly(firstUser);
 	}
 
+	@Test // DATAJPA-1625
+	public void nullSpecificationIsTrue() {
+
+		flushTestUsers();
+
+		assertThat(repository.findAll((Specification<User>) null)).hasSize(4);
+	}
+
+	@Test // DATAJPA-1625
+	public void notNullSpecificationIsFalse() {
+
+		flushTestUsers();
+
+		Specification<User> notNullSpec = not(null);
+
+		assertThat(repository.findAll(notNullSpec)).isEmpty();
+	}
+
+	@Test // DATAJPA-1625
+	public void whereOfNullCanBeInverted() {
+
+		flushTestUsers();
+
+		Specification<User> notNullSpec = not(where(null));
+
+		assertThat(repository.findAll(notNullSpec)).isEmpty();
+	}
+
+	@Test // DATAJPA-1625
+	public void andWithNullWorksAsExpected() {
+
+		flushTestUsers();
+
+		Specification<User> nullSpec = where((Specification<User>)null).and(null);
+
+		assertThat(repository.findAll(nullSpec)).hasSize(4);
+	}
+
+	@Test // DATAJPA-1625
+	public void orWithNullWorksAsExpected() {
+
+		flushTestUsers();
+
+		// This is weird and would be much clearer if we disallow null.
+		Specification<User> nullSpec = not((Specification<User>)null).or(null);
+
+		assertThat(repository.findAll(nullSpec)).hasSize(4);
+	}
+
 	private Page<User> executeSpecWithSort(Sort sort) {
 
 		flushTestUsers();
