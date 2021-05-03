@@ -756,7 +756,7 @@ public class UserRepositoryTests {
 
 		flushTestUsers();
 
-		assertThat(repository.findByCreatedAtAfter(secondUser.getCreatedAt())).containsOnly(thirdUser, fourthUser);
+		assertThat(repository.findByCreatedAtAfter(secondUser.getCreatedAt().orElseThrow(() -> new RuntimeException("Nothing")))).containsOnly(thirdUser, fourthUser);
 	}
 
 	@Test // DATAJPA-188
@@ -764,7 +764,7 @@ public class UserRepositoryTests {
 
 		flushTestUsers();
 
-		assertThat(repository.findByCreatedAtBefore(thirdUser.getCreatedAt())).containsOnly(firstUser, secondUser);
+		assertThat(repository.findByCreatedAtBefore(thirdUser.getCreatedAt().orElseThrow(() -> new RuntimeException("Nothing")))).containsOnly(firstUser, secondUser);
 	}
 
 	@Test // DATAJPA-180
@@ -1750,6 +1750,19 @@ public class UserRepositoryTests {
 
 		List<User> users = repository
 				.findAll(of(prototype, ExampleMatcher.matching().withIgnorePaths("age", "createdAt", "active")));
+
+		assertThat(users).hasSize(4);
+	}
+
+	@Test
+	void findAllByExampleWithEmptyProbeAndIgnoringNullValues () {
+		flushTestUsers();
+
+		User prototype = new User();
+		prototype.setCreatedAt(null);
+
+		List<User> users = repository
+				.findAll(of(prototype, ExampleMatcher.matching().withIgnoreNullValues().withIgnorePaths("age", "createdAt", "active")));
 
 		assertThat(users).hasSize(4);
 	}

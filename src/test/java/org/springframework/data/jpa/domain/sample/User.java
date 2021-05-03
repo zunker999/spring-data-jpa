@@ -15,9 +15,12 @@
  */
 package org.springframework.data.jpa.domain.sample;
 
+import org.springframework.lang.Nullable;
+
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.persistence.*;
@@ -96,7 +99,7 @@ public class User {
 	private String lastname;
 	private int age;
 	private boolean active;
-	@Temporal(TemporalType.TIMESTAMP) private Date createdAt;
+	@Temporal(TemporalType.TIMESTAMP) @Nullable private Date createdAt;
 
 	@Column(nullable = false, unique = true) private String emailAddress;
 
@@ -326,11 +329,15 @@ public class User {
 		this.manager = manager;
 	}
 
-	/**
-	 * @return the createdAt
-	 */
-	public Date getCreatedAt() {
-		return createdAt;
+//	/**
+//	 * @return the createdAt
+//	 */
+//	public Date getCreatedAt() {
+//		return createdAt;
+//	}
+
+	public Optional<Date> getCreatedAt() {
+		return Optional.ofNullable(createdAt);
 	}
 
 	/**
