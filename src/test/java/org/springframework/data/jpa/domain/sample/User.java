@@ -15,15 +15,45 @@
  */
 package org.springframework.data.jpa.domain.sample;
 
-import org.springframework.lang.Nullable;
-
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-import javax.persistence.*;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.ColumnResult;
+import javax.persistence.ElementCollection;
+import javax.persistence.Embedded;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.NamedAttributeNode;
+import javax.persistence.NamedEntityGraph;
+import javax.persistence.NamedEntityGraphs;
+import javax.persistence.NamedNativeQueries;
+import javax.persistence.NamedNativeQuery;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
+import javax.persistence.NamedStoredProcedureQueries;
+import javax.persistence.NamedStoredProcedureQuery;
+import javax.persistence.NamedSubgraph;
+import javax.persistence.ParameterMode;
+import javax.persistence.SqlResultSetMapping;
+import javax.persistence.SqlResultSetMappings;
+import javax.persistence.StoredProcedureParameter;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+
+import org.springframework.lang.Nullable;
 
 /**
  * Domain class representing a person emphasizing the use of {@code AbstractEntity}. No declaration of an id is
@@ -99,7 +129,7 @@ public class User {
 	private String lastname;
 	private int age;
 	private boolean active;
-	@Temporal(TemporalType.TIMESTAMP) @Nullable private Date createdAt;
+	@Temporal(TemporalType.TIMESTAMP) @Nullable private Date createdDate;
 
 	@Column(nullable = false, unique = true) private String emailAddress;
 
@@ -141,7 +171,7 @@ public class User {
 		this.roles = new HashSet<Role>(Arrays.asList(roles));
 		this.colleagues = new HashSet<User>();
 		this.attributes = new HashSet<String>();
-		this.createdAt = new Date();
+		this.createdDate = new Date();
 	}
 
 	/**
@@ -336,8 +366,12 @@ public class User {
 //		return createdAt;
 //	}
 
-	public Optional<Date> getCreatedAt() {
-		return Optional.ofNullable(createdAt);
+	public Optional<Date> getCreatedDate() {
+		return null == createdDate ? Optional.empty() : Optional.of(createdDate);
+	}
+
+	public void setCreatedDate(@Nullable Date createdDate) {
+		this.createdDate = createdDate;
 	}
 
 	/**
@@ -411,9 +445,9 @@ public class User {
 		this.dateOfBirth = dateOfBirth;
 	}
 
-	public void setCreatedAt(Date createdAt) {
-		this.createdAt = createdAt;
-	}
+//	public void setCreatedDate(Date createdAt) {
+//		this.createdDate = createdAt;
+//	}
 
 	/*
 	 * (non-Javadoc)

@@ -24,9 +24,12 @@ import static org.springframework.data.jpa.domain.Specification.*;
 import static org.springframework.data.jpa.domain.Specification.not;
 import static org.springframework.data.jpa.domain.sample.UserSpecifications.*;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -756,7 +759,8 @@ public class UserRepositoryTests {
 
 		flushTestUsers();
 
-		assertThat(repository.findByCreatedAtAfter(secondUser.getCreatedAt().orElseThrow(() -> new RuntimeException("Nothing")))).containsOnly(thirdUser, fourthUser);
+		Date date = secondUser.getCreatedDate().orElseThrow(() -> new RuntimeException("Nothing"));
+		assertThat(repository.findByCreatedDateAfter(date)).containsOnly(thirdUser, fourthUser);
 	}
 
 	@Test // DATAJPA-188
@@ -764,7 +768,8 @@ public class UserRepositoryTests {
 
 		flushTestUsers();
 
-		assertThat(repository.findByCreatedAtBefore(thirdUser.getCreatedAt().orElseThrow(() -> new RuntimeException("Nothing")))).containsOnly(firstUser, secondUser);
+		Date date = thirdUser.getCreatedDate().orElseThrow(() -> new RuntimeException("Nothing"));
+		assertThat(repository.findByCreatedDateBefore(date)).containsOnly(firstUser, secondUser);
 	}
 
 	@Test // DATAJPA-180
@@ -1732,7 +1737,7 @@ public class UserRepositoryTests {
 
 		User prototype = new User();
 		prototype.setAge(28);
-		prototype.setCreatedAt(null);
+		prototype.setCreatedDate(null);
 
 		List<User> users = repository.findAll(of(prototype));
 
@@ -1746,7 +1751,7 @@ public class UserRepositoryTests {
 		flushTestUsers();
 
 		User prototype = new User();
-		prototype.setCreatedAt(null);
+		prototype.setCreatedDate(null);
 
 		List<User> users = repository
 				.findAll(of(prototype, ExampleMatcher.matching().withIgnorePaths("age", "createdAt", "active")));
@@ -1756,10 +1761,11 @@ public class UserRepositoryTests {
 
 	@Test
 	void findAllByExampleWithEmptyProbeAndIgnoringNullValues () {
+
 		flushTestUsers();
 
 		User prototype = new User();
-		prototype.setCreatedAt(null);
+		prototype.setCreatedDate(null);
 
 		List<User> users = repository
 				.findAll(of(prototype, ExampleMatcher.matching().withIgnoreNullValues().withIgnorePaths("age", "createdAt", "active")));
@@ -1799,10 +1805,10 @@ public class UserRepositoryTests {
 		User manager = new User();
 		manager.setLastname("Arrasz");
 		manager.setAge(secondUser.getAge());
-		manager.setCreatedAt(null);
+		manager.setCreatedDate(null);
 
 		User prototype = new User();
-		prototype.setCreatedAt(null);
+		prototype.setCreatedDate(null);
 		prototype.setManager(manager);
 
 		Example<User> example = Example.of(prototype, matching().withIgnorePaths("age"));
@@ -1821,7 +1827,7 @@ public class UserRepositoryTests {
 		repository.save(firstUser);
 
 		User prototype = new User();
-		prototype.setCreatedAt(null);
+		prototype.setCreatedDate(null);
 		prototype.setAddress(new Address("germany", null, null, null));
 
 		Example<User> example = Example.of(prototype, matching().withIgnorePaths("age"));

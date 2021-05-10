@@ -15,6 +15,7 @@
  */
 package org.springframework.data.jpa.repository.sample;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -238,10 +239,10 @@ public interface UserRepository
 	List<User> findColleaguesFor(User user);
 
 	// DATAJPA-188
-	List<User> findByCreatedAtBefore(Date date);
+	List<User> findByCreatedDateBefore(Date date);
 
 	// DATAJPA-188
-	List<User> findByCreatedAtAfter(Date date);
+	List<User> findByCreatedDateAfter(Date date);
 
 	// DATAJPA-180
 	List<User> findByFirstnameStartingWith(String firstname);
