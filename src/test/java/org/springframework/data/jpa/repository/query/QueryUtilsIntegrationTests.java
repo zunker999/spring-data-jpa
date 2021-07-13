@@ -18,6 +18,7 @@ package org.springframework.data.jpa.repository.query;
 import static java.util.Collections.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.data.jpa.repository.query.QueryUtils.*;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.From;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.spi.PersistenceProvider;
 import javax.persistence.spi.PersistenceProviderResolver;
@@ -46,7 +48,6 @@ import javax.persistence.spi.PersistenceProviderResolverHolder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
-
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.sample.Category;
@@ -139,8 +140,8 @@ public class QueryUtilsIntegrationTests {
 		CriteriaQuery<InvoiceItem> query = builder.createQuery(InvoiceItem.class);
 		Root<InvoiceItem> root = query.from(InvoiceItem.class);
 
-		QueryUtils
-				.toExpressionRecursively(root, PropertyPath.from("invoice.order.customer.name", InvoiceItem.class), false);
+		QueryUtils.toExpressionRecursively(root, PropertyPath.from("invoice.order.customer.name", InvoiceItem.class),
+				false);
 
 		assertThat(getInnerJoins(root)).hasSize(1); // join invoice
 		Join<?, ?> rootInnerJoin = getInnerJoins(root).iterator().next();
@@ -162,8 +163,8 @@ public class QueryUtilsIntegrationTests {
 		root.join("invoice", JoinType.LEFT).join("order", JoinType.LEFT);
 
 		// when navigating through a path with nested optionals
-		QueryUtils
-				.toExpressionRecursively(root, PropertyPath.from("invoice.order.customer.name", InvoiceItem.class), false);
+		QueryUtils.toExpressionRecursively(root, PropertyPath.from("invoice.order.customer.name", InvoiceItem.class),
+				false);
 
 		// assert that existing joins are reused and no additional joins are created
 		assertThat(getInnerJoins(root)).isEmpty(); // no inner join invoice
@@ -185,8 +186,8 @@ public class QueryUtilsIntegrationTests {
 		// given an existing inner join an nested optional
 		root.join("invoice").join("order");
 
-		QueryUtils
-				.toExpressionRecursively(root, PropertyPath.from("invoice.order.customer.name", InvoiceItem.class), false);
+		QueryUtils.toExpressionRecursively(root, PropertyPath.from("invoice.order.customer.name", InvoiceItem.class),
+				false);
 
 		// assert that no useless left joins are created
 		assertThat(getInnerJoins(root)).hasSize(1); // join invoice
@@ -307,7 +308,7 @@ public class QueryUtilsIntegrationTests {
 
 		Sort sort = Sort.by(Direction.ASC, "age");
 
-		List<javax.persistence.criteria.Order> orders = QueryUtils.toOrders(sort, join, builder);
+		List<javax.persistence.criteria.Order> orders = toOrders(sort, join, builder);
 
 		assertThat(orders).hasSize(1);
 	}
@@ -327,6 +328,29 @@ public class QueryUtilsIntegrationTests {
 		root.get("manager");
 
 		assertThat(root.getJoins()).hasSize(getNumberOfJoinsAfterCreatingAPath());
+	}
+
+	@Test // GH-2253
+	void orderByMustReuseAJoin() {
+
+		CriteriaBuilder builder = em.getCriteriaBuilder();
+		CriteriaQuery<Category> query = builder.createQuery(Category.class);
+		Root<Category> root = query.from(Category.class);
+
+		// this represents what is done by the specification in the issue
+		//
+		query.distinct(true); // this does not belong into a specification
+		root.fetch("product", JoinType.LEFT);
+		final Predicate idEquals1 = builder.equal(root.get("id"), 1L);
+		query.where(idEquals1);
+
+		// Also order by a field of the entity referenced by the fetch from the "Specification"
+		Sort sort = Sort.by(Direction.ASC, "product.name");
+
+		query.orderBy(toOrders(sort, root, builder));
+
+		assertThat(root.getJoins()).hasSize(1);
+
 	}
 
 	int getNumberOfJoinsAfterCreatingAPath() {
@@ -357,6 +381,7 @@ public class QueryUtilsIntegrationTests {
 	@SuppressWarnings("unused")
 	static class Address {
 		@Id String id;
+		String name;
 		@OneToOne(mappedBy = "address") Merchant merchant;
 	}
 

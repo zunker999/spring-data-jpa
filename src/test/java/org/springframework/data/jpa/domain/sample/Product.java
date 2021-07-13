@@ -8,8 +8,8 @@ import javax.persistence.Id;
 public class Product {
 
 	@Id @GeneratedValue private Long id;
-
 	public Long getId() {
 		return id;
 	}
+	String name;
 }
