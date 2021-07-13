@@ -171,7 +171,7 @@ public class UserRepositoryTests {
 				.containsExactlyInAnyOrder(firstUser, secondUser, thirdUser);
 	}
 
-	@Test // gh-2148
+	@Test // GH-2148
 	void savesAndFlushesCollectionCorrectly() {
 
 		assertThat(repository.saveAllAndFlush(asList(firstUser, secondUser, thirdUser))) //
@@ -183,7 +183,7 @@ public class UserRepositoryTests {
 		assertThat(repository.saveAll(new ArrayList<>())).isEmpty();
 	}
 
-	@Test // gh-2148
+	@Test // GH-2148
 	void savingAndFlushingEmptyCollectionIsNoOp() {
 		assertThat(repository.saveAllAndFlush(new ArrayList<>())).isEmpty();
 	}
@@ -1000,7 +1000,7 @@ public class UserRepositoryTests {
 		assertThat(result).isEqualTo(firstUser);
 	}
 
-	@Test // gh-1697
+	@Test // GH-1697
 	void looksUpEntityReferenceUsingGetById() {
 
 		flushTestUsers();
@@ -1123,7 +1123,7 @@ public class UserRepositoryTests {
 		assertThat(user.getEmailAddress()).isEqualTo(savedUser.getEmailAddress());
 	}
 
-	@Test // gh-2148
+	@Test // GH-2148
 	void saveAllAndFlushShouldSupportReturningSubTypesOfRepositoryEntity() {
 
 		repository.deleteAll();

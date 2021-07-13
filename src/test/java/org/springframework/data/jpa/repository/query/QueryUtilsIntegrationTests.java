@@ -116,7 +116,7 @@ public class QueryUtilsIntegrationTests {
 		});
 	}
 
-	@Test // gh-2111
+	@Test // GH-2111
 	void createsLeftJoinForOptionalToOneWithNestedNonOptional() {
 
 		CriteriaBuilder builder = em.getCriteriaBuilder();
@@ -132,7 +132,7 @@ public class QueryUtilsIntegrationTests {
 		assertThat(getInnerJoins(leftJoin)).isEmpty(); // no inner join customer
 	}
 
-	@Test // gh-2111
+	@Test // GH-2111
 	void createsLeftJoinForNonOptionalToOneWithNestedOptional() {
 
 		CriteriaBuilder builder = em.getCriteriaBuilder();
@@ -151,7 +151,7 @@ public class QueryUtilsIntegrationTests {
 		assertThat(getInnerJoins(leftJoin)).isEmpty(); // no inner join customer
 	}
 
-	@Test // gh-2111
+	@Test // GH-2111
 	void reusesLeftJoinForNonOptionalToOneWithNestedOptional() {
 
 		CriteriaBuilder builder = em.getCriteriaBuilder();
@@ -175,7 +175,7 @@ public class QueryUtilsIntegrationTests {
 		assertThat(getNonInnerJoins(leftJoin)).hasSize(1); // left join customer
 	}
 
-	@Test // gh-2111
+	@Test // GH-2111
 	void reusesInnerJoinForNonOptionalToOneWithNestedOptional() {
 
 		CriteriaBuilder builder = em.getCriteriaBuilder();

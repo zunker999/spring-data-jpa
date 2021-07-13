@@ -147,7 +147,7 @@ class SpecificationUnitTests implements Serializable {
 		assertThat(transferredSpecification).isNotNull();
 	}
 
-	@Test // #2146
+	@Test // GH-2146
 	void andCombinesSpecificationsInOrder() {
 
 		Predicate firstPredicate = mock(Predicate.class);
@@ -162,7 +162,7 @@ class SpecificationUnitTests implements Serializable {
 		verify(builder).and(firstPredicate, secondPredicate);
 	}
 
-	@Test // #2146
+	@Test // GH-2146
 	void orCombinesSpecificationsInOrder() {
 
 		Predicate firstPredicate = mock(Predicate.class);
