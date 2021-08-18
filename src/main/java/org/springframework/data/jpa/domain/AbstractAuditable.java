@@ -30,6 +30,8 @@ import org.springframework.data.domain.Auditable;
 import org.springframework.lang.Nullable;
 
 /**
+ *
+ * 可审计实体的抽象基类。将试听值存储在持久字段中。
  * Abstract base class for auditable entities. Stores the audition values in persistent fields.
  *
  * @author Oliver Gierke
